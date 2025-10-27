@@ -1,6 +1,6 @@
 """
-Social Media Engagement Analytics Dashboard
-Main Streamlit application
+Social Media Performance Dashboard
+Single-page Streamlit application with sidebar uploads
 """
 import streamlit as st
 import pandas as pd
@@ -11,7 +11,7 @@ import analytics
 
 # Page configuration
 st.set_page_config(
-    page_title="Social Media Engagement Analytics",
+    page_title="Social Media Performance Dashboard",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -25,31 +25,30 @@ st.markdown("""
         font-weight: bold;
         color: #1f77b4;
         text-align: center;
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
     }
     .sub-header {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         color: #555;
         text-align: center;
         margin-bottom: 2rem;
     }
-    .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin: 0.5rem 0;
+    .metric-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-weight: bold;
+        font-size: 0.9rem;
     }
-    .stButton>button {
-        width: 100%;
-    }
+    .rank-1 { background-color: #ffd700; color: #000; }
+    .rank-2 { background-color: #c0c0c0; color: #000; }
+    .rank-3 { background-color: #cd7f32; color: #fff; }
     </style>
 """, unsafe_allow_html=True)
 
 
 def initialize_session_state():
     """Initialize session state variables"""
-    if 'step' not in st.session_state:
-        st.session_state.step = 1
     if 'performance_df' not in st.session_state:
         st.session_state.performance_df = None
     if 'previous_df' not in st.session_state:
@@ -62,27 +61,34 @@ def initialize_session_state():
         st.session_state.previous_mapping = None
     if 'follower_mapping' not in st.session_state:
         st.session_state.follower_mapping = None
+    if 'show_mapping' not in st.session_state:
+        st.session_state.show_mapping = False
     if 'leaderboard' not in st.session_state:
         st.session_state.leaderboard = None
 
 
-def upload_files_step():
-    """Step 1: Upload all three files"""
-    st.markdown('<p class="main-header">📊 Social Media Engagement Analytics</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Upload your performance data files to get started</p>', unsafe_allow_html=True)
+def main():
+    """Main application"""
+    initialize_session_state()
     
-    st.markdown("---")
+    # Header
+    st.markdown('<p class="main-header">📊 Social Media Performance Dashboard</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Analyze engagement metrics across all your pages/profiles/channels</p>', unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("### 📁 File 1: Performance Data")
-        st.info("Upload current period performance data with page names, post details, dates, likes, comments, and shares.")
+    # Sidebar for file uploads
+    with st.sidebar:
+        st.markdown("## 📁 Upload Data Files")
+        st.markdown("Upload three Excel files to analyze your social media performance.")
+        st.markdown("---")
+        
+        # File 1: Daily Post Performance
+        st.markdown("### 📊 File 1: Daily Post Performance")
+        st.caption("Required columns: page/profile/channel name, post name/id, date, like, comment, share")
         performance_file = st.file_uploader(
-            "Performance File",
+            "Upload Performance Data",
             type=['xlsx', 'xls'],
             key='performance_upload',
-            help="Excel file with post-level performance data"
+            help="Excel file with daily post-level performance data"
         )
         
         if performance_file:
@@ -90,17 +96,17 @@ def upload_files_step():
             if df is not None:
                 st.session_state.performance_df = df
                 st.success(f"✅ Loaded {len(df)} rows")
-                with st.expander("Preview Data"):
-                    st.dataframe(df.head(10))
-    
-    with col2:
-        st.markdown("### 📁 File 2: Previous Period Data")
-        st.info("Upload previous period data with page names, total posts, and total engagement for comparison.")
+        
+        st.markdown("---")
+        
+        # File 2: Last Fortnight Performance
+        st.markdown("### 📅 File 2: Last Fortnight Performance")
+        st.caption("Required columns: page/profile/channel name, engagement, post count, day won, rank")
         previous_file = st.file_uploader(
-            "Previous Period File",
+            "Upload Last Fortnight Data",
             type=['xlsx', 'xls'],
             key='previous_upload',
-            help="Excel file with aggregated previous period data"
+            help="Excel file with last fortnight aggregated performance"
         )
         
         if previous_file:
@@ -108,17 +114,17 @@ def upload_files_step():
             if df is not None:
                 st.session_state.previous_df = df
                 st.success(f"✅ Loaded {len(df)} rows")
-                with st.expander("Preview Data"):
-                    st.dataframe(df.head(10))
-    
-    with col3:
-        st.markdown("### 📁 File 3: Follower Data")
-        st.info("Upload follower data with page names and current follower counts.")
+        
+        st.markdown("---")
+        
+        # File 3: Follower Counts
+        st.markdown("### 👥 File 3: Follower Counts")
+        st.caption("Required columns: page/profile/channel name, follower")
         follower_file = st.file_uploader(
-            "Follower File",
+            "Upload Follower Data",
             type=['xlsx', 'xls'],
             key='follower_upload',
-            help="Excel file with follower information"
+            help="Excel file with current follower counts"
         )
         
         if follower_file:
@@ -126,105 +132,160 @@ def upload_files_step():
             if df is not None:
                 st.session_state.follower_df = df
                 st.success(f"✅ Loaded {len(df)} rows")
-                with st.expander("Preview Data"):
-                    st.dataframe(df.head(10))
-    
-    st.markdown("---")
-    
-    # Check if all files are uploaded
-    if (st.session_state.performance_df is not None and 
-        st.session_state.previous_df is not None and 
-        st.session_state.follower_df is not None):
         
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col2:
-            if st.button("✨ Next: Map Columns", type="primary", use_container_width=True):
-                st.session_state.step = 2
+        st.markdown("---")
+        
+        # Check if all files uploaded
+        all_uploaded = (
+            st.session_state.performance_df is not None and
+            st.session_state.previous_df is not None and
+            st.session_state.follower_df is not None
+        )
+        
+        if all_uploaded:
+            if st.button("🔗 Map Columns & Generate Dashboard", type="primary", use_container_width=True):
+                st.session_state.show_mapping = True
                 st.rerun()
-    else:
-        st.warning("⚠️ Please upload all three files to continue.")
-
-
-def map_columns_step():
-    """Step 2: Map columns for all three files"""
-    st.markdown('<p class="main-header">🔗 Column Mapping</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Map your data columns to the required fields</p>', unsafe_allow_html=True)
+        else:
+            st.info("⚠️ Upload all three files to continue")
+        
+        st.markdown("---")
+        st.markdown("### 📐 Engagement Formula")
+        st.latex(r"E = 1 \times L + 2 \times C + 3 \times S")
+        st.caption("L=Likes, C=Comments, S=Shares")
     
-    st.markdown("---")
+    # Main content area
+    if not all_uploaded:
+        # Show welcome/instructions when files not uploaded
+        st.info("👈 Please upload all three Excel files using the sidebar to get started.")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown("### 📊 File 1: Daily Posts")
+            st.markdown("""
+            Upload your daily post performance data with:
+            - Page/Profile/Channel name
+            - Post ID or name
+            - Post date
+            - Likes count
+            - Comments count
+            - Shares count
+            """)
+        
+        with col2:
+            st.markdown("### 📅 File 2: Last Fortnight")
+            st.markdown("""
+            Upload last fortnight's aggregated data with:
+            - Page/Profile/Channel name
+            - Total engagement score
+            - Post count
+            - Days won
+            - Rank
+            """)
+        
+        with col3:
+            st.markdown("### 👥 File 3: Followers")
+            st.markdown("""
+            Upload current follower data with:
+            - Page/Profile/Channel name
+            - Follower count
+            """)
+        
+        st.markdown("---")
+        st.markdown("### 📋 What You'll Get")
+        st.markdown("""
+        After uploading all files, you'll see a comprehensive dashboard with:
+        - **Engagement rankings** for all pages/profiles/channels
+        - **Performance comparisons** vs. last fortnight
+        - **Daily winner tracking** showing which pages won each day
+        - **Interactive table** with sorting and filtering
+        - **Export options** to download results
+        """)
+    
+    elif st.session_state.show_mapping:
+        # Show column mapping interface
+        show_column_mapping()
+    
+    elif st.session_state.leaderboard is not None:
+        # Show the dashboard
+        show_dashboard()
+
+
+def show_column_mapping():
+    """Display column mapping interface"""
+    st.markdown("## 🔗 Column Mapping")
+    st.info("Map your data columns to the required fields. Auto-detection is provided as a starting point.")
     
     # Performance file mapping
-    st.markdown("### 📊 Performance Data Mapping")
-    performance_fields = {
-        'page_name': 'Page/Profile/Channel Name',
-        'post_id': 'Post ID/Name',
-        'date': 'Post Date',
-        'likes': 'Likes',
-        'comments': 'Comments',
-        'shares': 'Shares'
-    }
-    
-    performance_mapping = utils.create_column_mapping_ui(
-        st.session_state.performance_df,
-        "Performance Data",
-        performance_fields
-    )
-    
-    st.markdown("---")
+    with st.expander("📊 File 1: Daily Post Performance - Column Mapping", expanded=True):
+        st.dataframe(st.session_state.performance_df.head(3), use_container_width=True)
+        
+        performance_fields = {
+            'page_name': 'Page/Profile/Channel Name',
+            'post_id': 'Post ID/Name',
+            'date': 'Post Date',
+            'likes': 'Likes',
+            'comments': 'Comments',
+            'shares': 'Shares'
+        }
+        
+        performance_mapping = utils.create_column_mapping_ui(
+            st.session_state.performance_df,
+            "Performance",
+            performance_fields
+        )
     
     # Previous period mapping
-    st.markdown("### 📅 Previous Period Data Mapping")
-    previous_fields = {
-        'page_name': 'Page/Profile/Channel Name',
-        'posts': 'Total Posts',
-        'engagement': 'Total Engagement'
-    }
-    
-    previous_mapping = utils.create_column_mapping_ui(
-        st.session_state.previous_df,
-        "Previous Period",
-        previous_fields
-    )
-    
-    st.markdown("---")
+    with st.expander("📅 File 2: Last Fortnight Performance - Column Mapping", expanded=True):
+        st.dataframe(st.session_state.previous_df.head(3), use_container_width=True)
+        
+        previous_fields = {
+            'page_name': 'Page/Profile/Channel Name',
+            'engagement': 'Total Engagement',
+            'post_count': 'Post Count',
+            'day_won': 'Day Won',
+            'rank': 'Rank'
+        }
+        
+        previous_mapping = utils.create_column_mapping_ui(
+            st.session_state.previous_df,
+            "LastFortnight",
+            previous_fields
+        )
     
     # Follower data mapping
-    st.markdown("### 👥 Follower Data Mapping")
-    follower_fields = {
-        'page_name': 'Page/Profile/Channel Name',
-        'followers': 'Followers Count'
-    }
-    
-    follower_mapping = utils.create_column_mapping_ui(
-        st.session_state.follower_df,
-        "Follower Data",
-        follower_fields
-    )
+    with st.expander("👥 File 3: Follower Counts - Column Mapping", expanded=True):
+        st.dataframe(st.session_state.follower_df.head(3), use_container_width=True)
+        
+        follower_fields = {
+            'page_name': 'Page/Profile/Channel Name',
+            'followers': 'Followers Count'
+        }
+        
+        follower_mapping = utils.create_column_mapping_ui(
+            st.session_state.follower_df,
+            "Follower",
+            follower_fields
+        )
     
     st.markdown("---")
     
-    # Validate and proceed
     col1, col2, col3 = st.columns([1, 1, 1])
     
     with col1:
-        if st.button("⬅️ Back", use_container_width=True):
-            st.session_state.step = 1
+        if st.button("⬅️ Back to Upload", use_container_width=True):
+            st.session_state.show_mapping = False
             st.rerun()
     
     with col3:
-        # Validate all mappings
+        # Validate mappings
         perf_valid, perf_empty = utils.validate_mapping(performance_mapping)
         prev_valid, prev_empty = utils.validate_mapping(previous_mapping)
         foll_valid, foll_empty = utils.validate_mapping(follower_mapping)
         
         if perf_valid and prev_valid and foll_valid:
             if st.button("🚀 Generate Dashboard", type="primary", use_container_width=True):
-                # Store mappings
-                st.session_state.performance_mapping = performance_mapping
-                st.session_state.previous_mapping = previous_mapping
-                st.session_state.follower_mapping = follower_mapping
-                
-                # Generate leaderboard
-                with st.spinner("Calculating engagement metrics..."):
+                with st.spinner("Calculating engagement metrics and rankings..."):
                     try:
                         leaderboard = analytics.create_leaderboard(
                             performance_df=st.session_state.performance_df,
@@ -236,203 +297,215 @@ def map_columns_step():
                             comments_col=performance_mapping['comments'],
                             shares_col=performance_mapping['shares'],
                             follower_col=follower_mapping['followers'],
-                            previous_posts_col=previous_mapping['posts'],
-                            previous_engagement_col=previous_mapping['engagement']
+                            previous_posts_col=previous_mapping['post_count'],
+                            previous_engagement_col=previous_mapping['engagement'],
+                            previous_day_won_col=previous_mapping['day_won'],
+                            previous_rank_col=previous_mapping['rank']
                         )
                         
                         st.session_state.leaderboard = leaderboard
-                        st.session_state.step = 3
+                        st.session_state.show_mapping = False
+                        st.success("✅ Dashboard generated successfully!")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error generating dashboard: {str(e)}")
-                        st.exception(e)
+                        st.error(f"❌ Error generating dashboard: {str(e)}")
+                        with st.expander("See detailed error"):
+                            st.exception(e)
         else:
             st.button("🚀 Generate Dashboard", disabled=True, use_container_width=True)
-            error_msgs = []
+            errors = []
             if not perf_valid:
-                error_msgs.append(f"Performance: {', '.join(perf_empty)}")
+                errors.append(f"Performance: {', '.join(perf_empty)}")
             if not prev_valid:
-                error_msgs.append(f"Previous: {', '.join(prev_empty)}")
+                errors.append(f"Last Fortnight: {', '.join(prev_empty)}")
             if not foll_valid:
-                error_msgs.append(f"Follower: {', '.join(foll_empty)}")
-            st.error(f"⚠️ Please map all required fields: {'; '.join(error_msgs)}")
+                errors.append(f"Follower: {', '.join(foll_empty)}")
+            st.error(f"⚠️ Please map all required fields:\n" + "\n".join(f"- {e}" for e in errors))
 
 
-def dashboard_step():
-    """Step 3: Display interactive dashboard"""
-    st.markdown('<p class="main-header">🏆 Engagement Leaderboard Dashboard</p>', unsafe_allow_html=True)
+def show_dashboard():
+    """Display the main dashboard with results"""
+    st.markdown("## 🏆 Performance Dashboard")
     
-    if st.session_state.leaderboard is None:
-        st.error("No leaderboard data available. Please go back and generate the dashboard.")
-        return
+    leaderboard = st.session_state.leaderboard.copy()
     
-    leaderboard = st.session_state.leaderboard
+    # Format engagement values to millions with M suffix
+    def format_engagement(value):
+        """Format engagement value as millions with 2 decimals"""
+        return f"{value / 1_000_000:.2f}M"
+    
+    def format_percentage(value):
+        """Format percentage as whole number with % sign"""
+        if pd.isna(value):
+            return "0%"
+        return f"{int(round(value))}%"
+    
+    # Create display version with formatted values
+    display_leaderboard = leaderboard.copy()
+    display_leaderboard['Engagement'] = leaderboard['Engagement'].apply(
+        lambda x: format_engagement(x) if pd.notna(x) else "0.00M"
+    )
+    display_leaderboard['% Change in Post'] = leaderboard['% Change in Post'].apply(format_percentage)
+    display_leaderboard['% Change in Engagement'] = leaderboard['% Change in Engagement'].apply(format_percentage)
     
     # Summary metrics
-    st.markdown("### 📈 Summary Metrics")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.metric(
-            "Total Pages/Profiles",
+            "Total Pages",
             len(leaderboard),
-            help="Total number of pages analyzed"
+            help="Total number of pages/profiles/channels analyzed"
         )
     
     with col2:
-        total_posts = leaderboard['Total Posts'].sum()
+        total_posts = leaderboard['Post'].sum()
         st.metric(
             "Total Posts",
             f"{total_posts:,}",
-            help="Sum of all posts across all pages"
+            help="Sum of all posts across all pages in current period"
         )
     
     with col3:
-        total_engagement = leaderboard['Total Engagement'].sum()
+        total_engagement = leaderboard['Engagement'].sum()
         st.metric(
             "Total Engagement",
-            f"{total_engagement:,.0f}",
-            help="Sum of all engagement scores"
+            f"{total_engagement / 1_000_000:.2f}M",
+            help="Sum of all engagement scores (1×Likes + 2×Comments + 3×Shares) in millions"
         )
     
     with col4:
-        avg_engagement = leaderboard['Total Engagement'].mean()
+        avg_engagement = leaderboard['Engagement'].mean()
         st.metric(
-            "Avg Engagement per Page",
-            f"{avg_engagement:,.0f}",
-            help="Average engagement score per page"
+            "Avg Engagement",
+            f"{avg_engagement / 1_000_000:.2f}M",
+            help="Average engagement score per page in millions"
         )
     
     st.markdown("---")
     
-    # Leaderboard table
-    st.markdown("### 🏅 Leaderboard Rankings")
+    # Main leaderboard table with tooltips
+    st.markdown("### 📋 Performance Leaderboard")
     
-    # Format the dataframe for display
-    display_df = leaderboard.copy()
+    # Column configuration with help text
+    column_config = {
+        "Follower": st.column_config.NumberColumn(
+            "Follower",
+            help="Current follower count for the page/profile/channel",
+            format="%d"
+        ),
+        "Page/Profile/Channel": st.column_config.TextColumn(
+            "Page/Profile/Channel",
+            help="Name of the social media page, profile, or channel"
+        ),
+        "Post": st.column_config.NumberColumn(
+            "Post",
+            help="Total number of posts in the current period",
+            format="%d"
+        ),
+        "Engagement": st.column_config.TextColumn(
+            "Engagement",
+            help="Total engagement score calculated as: 1×Likes + 2×Comments + 3×Shares (in millions)"
+        ),
+        "Rank": st.column_config.NumberColumn(
+            "Rank",
+            help="Current ranking based on total engagement (1 = highest)",
+            format="%d"
+        ),
+        "Day Won": st.column_config.NumberColumn(
+            "Day Won",
+            help="Number of days this page had the highest engagement",
+            format="%d"
+        ),
+        "% Change in Post": st.column_config.TextColumn(
+            "% Change in Post",
+            help="Percentage change in post count compared to last fortnight"
+        ),
+        "% Change in Engagement": st.column_config.TextColumn(
+            "% Change in Engagement",
+            help="Percentage change in engagement compared to last fortnight"
+        ),
+        "Last Fortnight Day Won": st.column_config.NumberColumn(
+            "Last Fortnight Day Won",
+            help="Number of days won in the last fortnight period",
+            format="%d"
+        ),
+        "Last Fortnight Rank": st.column_config.NumberColumn(
+            "Last Fortnight Rank",
+            help="Ranking in the last fortnight period",
+            format="%d"
+        )
+    }
     
-    # Format percentage columns
-    display_df['% Change Posts'] = display_df['% Change Posts'].apply(lambda x: f"{x:+.1f}%")
-    display_df['% Change Engagement'] = display_df['% Change Engagement'].apply(lambda x: f"{x:+.1f}%")
-    
-    # Format numeric columns
-    display_df['Followers'] = display_df['Followers'].apply(lambda x: f"{x:,}")
-    display_df['Total Posts'] = display_df['Total Posts'].apply(lambda x: f"{x:,}")
-    display_df['Total Engagement'] = display_df['Total Engagement'].apply(lambda x: f"{x:,.0f}")
-    
-    # Display with highlighting
     st.dataframe(
-        display_df,
+        display_leaderboard,
+        column_config=column_config,
         use_container_width=True,
         hide_index=True,
-        height=600
+        height=500
     )
     
     st.markdown("---")
     
-    # Top performers
+    # Additional insights (use original leaderboard for sorting by numeric engagement)
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("### 🥇 Top 5 by Engagement")
-        top_5 = leaderboard.head(5)[['Rank', 'Page/Profile/Channel', 'Total Engagement', 'Days Won']]
-        st.dataframe(top_5, hide_index=True, use_container_width=True)
+        top_5_orig = leaderboard.head(5)[['Rank', 'Page/Profile/Channel', 'Engagement', 'Day Won']].copy()
+        # Format engagement for display
+        top_5_display = top_5_orig.copy()
+        top_5_display['Engagement'] = top_5_orig['Engagement'].apply(
+            lambda x: format_engagement(x) if pd.notna(x) else "0.00M"
+        )
+        st.dataframe(top_5_display, hide_index=True, use_container_width=True)
     
     with col2:
         st.markdown("### 🏆 Most Days Won")
-        most_days = leaderboard.nlargest(5, 'Days Won')[['Rank', 'Page/Profile/Channel', 'Days Won', 'Total Engagement']]
-        st.dataframe(most_days, hide_index=True, use_container_width=True)
+        most_days_orig = leaderboard.nlargest(5, 'Day Won')[['Rank', 'Page/Profile/Channel', 'Day Won', 'Engagement']].copy()
+        # Format engagement for display
+        most_days_display = most_days_orig.copy()
+        most_days_display['Engagement'] = most_days_orig['Engagement'].apply(
+            lambda x: format_engagement(x) if pd.notna(x) else "0.00M"
+        )
+        st.dataframe(most_days_display, hide_index=True, use_container_width=True)
     
     st.markdown("---")
     
-    # Download options
-    st.markdown("### 💾 Export Data")
-    
-    col1, col2, col3 = st.columns([1, 1, 1])
+    # Export options
+    st.markdown("### 💾 Export Results")
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     
     with col1:
-        # Export to Excel
+        # Excel export
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            leaderboard.to_excel(writer, index=False, sheet_name='Leaderboard')
+            leaderboard.to_excel(writer, index=False, sheet_name='Dashboard')
         
         st.download_button(
-            label="📥 Download as Excel",
+            label="📥 Download Excel",
             data=output.getvalue(),
-            file_name="engagement_leaderboard.xlsx",
+            file_name="performance_dashboard.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
     
     with col2:
-        # Export to CSV
+        # CSV export
         csv = leaderboard.to_csv(index=False)
         st.download_button(
-            label="📥 Download as CSV",
+            label="📥 Download CSV",
             data=csv,
-            file_name="engagement_leaderboard.csv",
+            file_name="performance_dashboard.csv",
             mime="text/csv",
             use_container_width=True
         )
     
-    with col3:
+    with col4:
         if st.button("🔄 Start Over", use_container_width=True):
-            # Clear session state
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
-
-
-def main():
-    """Main application flow"""
-    initialize_session_state()
-    
-    # Sidebar navigation
-    with st.sidebar:
-        st.markdown("## 🎯 Navigation")
-        st.markdown("---")
-        
-        # Step indicators
-        steps = ["📁 Upload Files", "🔗 Map Columns", "📊 Dashboard"]
-        for i, step_name in enumerate(steps, 1):
-            if st.session_state.step == i:
-                st.markdown(f"**➡️ {step_name}**")
-            elif st.session_state.step > i:
-                st.markdown(f"✅ {step_name}")
-            else:
-                st.markdown(f"⭕ {step_name}")
-        
-        st.markdown("---")
-        
-        # Instructions
-        st.markdown("## ℹ️ Instructions")
-        st.markdown("""
-        **Step 1: Upload Files**
-        - Performance data with post details
-        - Previous period comparison data
-        - Follower count data
-        
-        **Step 2: Map Columns**
-        - Map your columns to required fields
-        - Auto-detection helps speed this up
-        
-        **Step 3: View Dashboard**
-        - Interactive leaderboard
-        - Download results
-        """)
-        
-        st.markdown("---")
-        st.markdown("### 📐 Engagement Formula")
-        st.latex(r"E = 1 \times L + 2 \times C + 3 \times S")
-        st.caption("L=Likes, C=Comments, S=Shares")
-    
-    # Main content based on current step
-    if st.session_state.step == 1:
-        upload_files_step()
-    elif st.session_state.step == 2:
-        map_columns_step()
-    elif st.session_state.step == 3:
-        dashboard_step()
 
 
 if __name__ == "__main__":

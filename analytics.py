@@ -145,30 +145,49 @@ def calculate_percentage_change(current_value: float, previous_value: float) -> 
 
 
 def add_comparison_data(current_df: pd.DataFrame, previous_df: pd.DataFrame, 
-                       page_col: str) -> pd.DataFrame:
+                       page_col: str, previous_posts_col: str = 'post_count',
+                       previous_engagement_col: str = 'engagement',
+                       previous_day_won_col: str = 'day_won',
+                       previous_rank_col: str = 'rank') -> pd.DataFrame:
     """
-    Add comparison metrics (% change in posts and engagement)
+    Add comparison metrics (% change in posts and engagement) and last fortnight data
     
     Args:
         current_df: Current period DataFrame with aggregated data
-        previous_df: Previous period DataFrame with posts and engagement
+        previous_df: Last fortnight DataFrame with engagement, post count, day won, rank
         page_col: Column name for page/profile/channel
+        previous_posts_col: Column name for posts in previous data (default: 'post_count')
+        previous_engagement_col: Column name for engagement in previous data (default: 'engagement')
+        previous_day_won_col: Column name for day won in previous data (default: 'day_won')
+        previous_rank_col: Column name for rank in previous data (default: 'rank')
         
     Returns:
-        DataFrame with percentage change columns added
+        DataFrame with percentage change columns and last fortnight metrics added
     """
     df = current_df.copy()
     
-    # Ensure previous_df has required columns
-    if 'total_posts' not in previous_df.columns or 'total_engagement' not in previous_df.columns:
-        # If previous_df doesn't have aggregated data, return current with 0% change
+    # Check if required columns exist in previous_df
+    required_cols = [previous_posts_col, previous_engagement_col]
+    missing_cols = [col for col in required_cols if col not in previous_df.columns]
+    
+    if missing_cols:
+        # If previous_df doesn't have required data, return current with default values
         df['posts_change_pct'] = 0.0
         df['engagement_change_pct'] = 0.0
+        df['last_fortnight_day_won'] = 0
+        df['last_fortnight_rank'] = 0
         return df
+    
+    # Prepare columns to merge from previous data
+    merge_cols = [page_col, previous_posts_col, previous_engagement_col]
+    if previous_day_won_col in previous_df.columns:
+        merge_cols.append(previous_day_won_col)
+    if previous_rank_col in previous_df.columns:
+        merge_cols.append(previous_rank_col)
     
     # Merge with previous data
     comparison = df.merge(
-        previous_df[[page_col, 'total_posts', 'total_engagement']], 
+        previous_df[merge_cols], 
         on=page_col, 
         how='left', 
         suffixes=('_current', '_previous')
@@ -181,11 +200,14 @@ def add_comparison_data(current_df: pd.DataFrame, previous_df: pd.DataFrame,
             'total_engagement_current': 'total_engagement'
         }, inplace=True)
     
-    # Calculate percentage changes
+    # Calculate percentage changes using the mapped column names
+    prev_posts_col_name = f'{previous_posts_col}_previous' if f'{previous_posts_col}_previous' in comparison.columns else previous_posts_col
+    prev_eng_col_name = f'{previous_engagement_col}_previous' if f'{previous_engagement_col}_previous' in comparison.columns else previous_engagement_col
+    
     comparison['posts_change_pct'] = comparison.apply(
         lambda row: calculate_percentage_change(
             row['total_posts'], 
-            row.get('total_posts_previous', 0)
+            row.get(prev_posts_col_name, 0)
         ), 
         axis=1
     )
@@ -193,12 +215,25 @@ def add_comparison_data(current_df: pd.DataFrame, previous_df: pd.DataFrame,
     comparison['engagement_change_pct'] = comparison.apply(
         lambda row: calculate_percentage_change(
             row['total_engagement'], 
-            row.get('total_engagement_previous', 0)
+            row.get(prev_eng_col_name, 0)
         ), 
         axis=1
     )
     
-    # Drop previous columns
+    # Add last fortnight day won and rank
+    if previous_day_won_col in previous_df.columns:
+        day_won_col = f'{previous_day_won_col}_previous' if f'{previous_day_won_col}_previous' in comparison.columns else previous_day_won_col
+        comparison['last_fortnight_day_won'] = comparison.get(day_won_col, 0).fillna(0).astype(int)
+    else:
+        comparison['last_fortnight_day_won'] = 0
+    
+    if previous_rank_col in previous_df.columns:
+        rank_col = f'{previous_rank_col}_previous' if f'{previous_rank_col}_previous' in comparison.columns else previous_rank_col
+        comparison['last_fortnight_rank'] = comparison.get(rank_col, 0).fillna(0).astype(int)
+    else:
+        comparison['last_fortnight_rank'] = 0
+    
+    # Drop previous columns (keep last fortnight metrics)
     comparison = comparison.drop(columns=[
         col for col in comparison.columns 
         if col.endswith('_previous')
@@ -262,14 +297,16 @@ def create_leaderboard(performance_df: pd.DataFrame, previous_df: pd.DataFrame,
                       follower_df: pd.DataFrame, page_col: str, 
                       date_col: str, likes_col: str, comments_col: str,
                       shares_col: str, follower_col: str,
-                      previous_posts_col: str = 'total_posts',
-                      previous_engagement_col: str = 'total_engagement') -> pd.DataFrame:
+                      previous_posts_col: str = 'post_count',
+                      previous_engagement_col: str = 'engagement',
+                      previous_day_won_col: str = 'day_won',
+                      previous_rank_col: str = 'rank') -> pd.DataFrame:
     """
     Create complete leaderboard with all metrics
     
     Args:
         performance_df: Current period performance data
-        previous_df: Previous period comparison data
+        previous_df: Last fortnight comparison data
         follower_df: Follower count data
         page_col: Column name for page/profile/channel
         date_col: Column name for date
@@ -277,8 +314,10 @@ def create_leaderboard(performance_df: pd.DataFrame, previous_df: pd.DataFrame,
         comments_col: Column name for comments
         shares_col: Column name for shares
         follower_col: Column name for followers
-        previous_posts_col: Column name for posts in previous data
-        previous_engagement_col: Column name for engagement in previous data
+        previous_posts_col: Column name for posts in previous data (default: 'post_count')
+        previous_engagement_col: Column name for engagement in previous data (default: 'engagement')
+        previous_day_won_col: Column name for day won in previous data (default: 'day_won')
+        previous_rank_col: Column name for rank in previous data (default: 'rank')
         
     Returns:
         Complete leaderboard DataFrame
@@ -300,32 +339,36 @@ def create_leaderboard(performance_df: pd.DataFrame, previous_df: pd.DataFrame,
     # Step 4: Create overall aggregation
     overall = aggregate_overall(df_with_engagement, page_col, daily_with_winners)
     
-    # Step 5: Prepare previous data with standard column names
-    previous_prepared = previous_df.copy()
-    if previous_posts_col in previous_prepared.columns:
-        previous_prepared.rename(columns={previous_posts_col: 'total_posts'}, inplace=True)
-    if previous_engagement_col in previous_prepared.columns:
-        previous_prepared.rename(columns={previous_engagement_col: 'total_engagement'}, inplace=True)
+    # Step 5: Add comparison data with last fortnight metrics
+    with_comparison = add_comparison_data(
+        overall, 
+        previous_df, 
+        page_col,
+        previous_posts_col,
+        previous_engagement_col,
+        previous_day_won_col,
+        previous_rank_col
+    )
     
-    # Step 6: Add comparison data
-    with_comparison = add_comparison_data(overall, previous_prepared, page_col)
-    
-    # Step 7: Add follower data
+    # Step 6: Add follower data
     with_followers = add_follower_data(with_comparison, follower_df, page_col, follower_col)
     
-    # Step 8: Rank pages
+    # Step 7: Rank pages
     leaderboard = rank_pages(with_followers, 'total_engagement')
     
-    # Step 9: Reorder columns for better display
+    # Step 8: Reorder columns for display (per instruction.md spec)
+    # Order: follower, page name, post, engagement, rank, day won, % change post, % change engagement, last fortnight day won, last fortnight rank
     column_order = [
-        'rank',
-        page_col,
         'followers',
+        page_col,
         'total_posts',
         'total_engagement',
+        'rank',
         'days_won',
         'posts_change_pct',
-        'engagement_change_pct'
+        'engagement_change_pct',
+        'last_fortnight_day_won',
+        'last_fortnight_rank'
     ]
     
     # Only include columns that exist
@@ -333,15 +376,19 @@ def create_leaderboard(performance_df: pd.DataFrame, previous_df: pd.DataFrame,
     leaderboard = leaderboard[final_columns]
     
     # Rename columns for display
-    leaderboard.columns = [
-        'Rank',
-        'Page/Profile/Channel',
-        'Followers',
-        'Total Posts',
-        'Total Engagement',
-        'Days Won',
-        '% Change Posts',
-        '% Change Engagement'
-    ]
+    display_names = {
+        'followers': 'Follower',
+        page_col: 'Page/Profile/Channel',
+        'total_posts': 'Post',
+        'total_engagement': 'Engagement',
+        'rank': 'Rank',
+        'days_won': 'Day Won',
+        'posts_change_pct': '% Change in Post',
+        'engagement_change_pct': '% Change in Engagement',
+        'last_fortnight_day_won': 'Last Fortnight Day Won',
+        'last_fortnight_rank': 'Last Fortnight Rank'
+    }
+    
+    leaderboard.rename(columns=display_names, inplace=True)
     
     return leaderboard

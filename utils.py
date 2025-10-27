@@ -138,8 +138,11 @@ def auto_detect_column(columns: List[str], field_key: str) -> Optional[str]:
         'likes': ['like', 'likes', 'love', 'reactions'],
         'comments': ['comment', 'comments', 'replies'],
         'shares': ['share', 'shares', 'repost', 'reposts'],
-        'posts': ['post', 'posts', 'total_posts', 'post_count'],
+        'posts': ['post', 'posts', 'total_posts'],
+        'post_count': ['post_count', 'post', 'posts', 'count'],
         'engagement': ['engagement', 'total_engagement', 'eng'],
+        'day_won': ['day_won', 'days_won', 'won', 'days'],
+        'rank': ['rank', 'ranking', 'position'],
         'followers': ['follower', 'followers', 'fans', 'subscribers']
     }
     

@@ -1,6 +1,6 @@
-# Social Media Engagement Analytics Dashboard
+# Social Media Performance Dashboard
 
-A comprehensive Streamlit application for analyzing social media engagement across multiple pages/profiles/channels.
+A comprehensive single-page Streamlit application for analyzing social media engagement across multiple pages/profiles/channels.
 
 ## Features
 
@@ -10,9 +10,11 @@ A comprehensive Streamlit application for analyzing social media engagement acro
 
 🏆 **Leaderboard Rankings**: Ranks pages by total engagement with comprehensive metrics
 
-📈 **Comparison Analytics**: Calculates percentage changes in posts and engagement vs. previous period
+📈 **Comparison Analytics**: Calculates percentage changes vs. last fortnight performance
 
 👥 **Follower Integration**: Displays follower counts alongside performance metrics
+
+📋 **Interactive Dashboard**: Single-page interface with sidebar uploads and tooltips
 
 💾 **Export Options**: Download results as Excel or CSV
 
@@ -49,36 +51,38 @@ Run the Streamlit app:
 streamlit run app.py
 ```
 
-The dashboard will open in your default web browser.
+The dashboard will open in your default web browser at http://localhost:8501
 
-### 2. Upload Files
+### 2. Upload Files (via Sidebar)
 
-Upload three Excel files (.xlsx or .xls):
+The sidebar contains three upload sections. Upload Excel files (.xlsx or .xls):
 
-**File 1: Performance Data** (Current Period)
-- Required columns: Page/Profile Name, Post ID, Date, Likes, Comments, Shares
+**File 1: Daily Post Performance** (Current Period)
+- Required columns: Page/Profile/Channel Name, Post ID, Date, Likes, Comments, Shares
 - Each row represents one post
 
-**File 2: Previous Period Data** (For Comparison)
-- Required columns: Page/Profile Name, Total Posts, Total Engagement
-- Aggregated data from previous period
+**File 2: Last Fortnight Performance** (For Comparison)
+- Required columns: Page/Profile/Channel Name, Engagement, Post Count, Day Won, Rank
+- Aggregated data from last fortnight period
 
-**File 3: Follower Data**
-- Required columns: Page/Profile Name, Followers Count
+**File 3: Follower Counts**
+- Required columns: Page/Profile/Channel Name, Follower Count
 - Current follower counts for each page
 
 ### 3. Map Columns
 
+Click "Map Columns & Generate Dashboard" button in the sidebar.
+
 The app will guide you through mapping your data columns to the required fields:
 - Auto-detection attempts to identify columns automatically
-- Manual selection available via dropdown menus
+- Manual selection available via dropdown menus for each field
 - Preview your data before proceeding
 
 ### 4. View Dashboard
 
-The interactive dashboard displays:
+The interactive single-page dashboard displays:
 - **Summary Metrics**: Total pages, posts, and engagement
-- **Leaderboard Table**: Ranked list with all metrics
+- **Leaderboard Table**: Ranked list with all metrics and tooltips
 - **Top Performers**: Top 5 pages by engagement
 - **Most Days Won**: Pages with most daily victories
 - **Export Options**: Download results as Excel or CSV
@@ -95,12 +99,14 @@ The interactive dashboard displays:
 | Comments | Number of comments | 25 |
 | Shares | Number of shares | 10 |
 
-### Previous Period Data (File 2)
+### Last Fortnight Data (File 2)
 | Column | Description | Example |
 |--------|-------------|---------|
 | Page Name | Name of page/profile/channel | "Tech News Daily" |
-| Total Posts | Number of posts in previous period | 45 |
-| Total Engagement | Total engagement in previous period | 5000 |
+| Engagement | Total engagement from last fortnight | 5000 |
+| Post Count | Number of posts in last fortnight | 45 |
+| Day Won | Days won in last fortnight | 3 |
+| Rank | Rank in last fortnight | 2 |
 
 ### Follower Data (File 3)
 | Column | Description | Example |
@@ -123,14 +129,16 @@ This weighted formula prioritizes:
 
 The dashboard calculates and displays:
 
-1. **Rank**: Position based on total engagement (1 = highest)
-2. **Page/Profile/Channel**: Name of the page
-3. **Followers**: Current follower count
-4. **Total Posts**: Number of posts in current period
-5. **Total Engagement**: Sum of engagement scores for all posts
-6. **Days Won**: Number of days this page had highest engagement
-7. **% Change Posts**: Percentage change in posts vs. previous period
-8. **% Change Engagement**: Percentage change in engagement vs. previous period
+1. **Follower**: Current follower count (with tooltip)
+2. **Page/Profile/Channel**: Name of the page (with tooltip)
+3. **Post**: Number of posts in current period (with tooltip)
+4. **Engagement**: Sum of engagement scores for all posts (with tooltip)
+5. **Rank**: Current ranking based on total engagement (1 = highest) (with tooltip)
+6. **Day Won**: Number of days this page had the highest engagement (with tooltip)
+7. **% Change in Post**: Percentage change in posts vs. last fortnight (with tooltip)
+8. **% Change in Engagement**: Percentage change in engagement vs. last fortnight (with tooltip)
+9. **Last Fortnight Day Won**: Days won in the last fortnight period (with tooltip)
+10. **Last Fortnight Rank**: Ranking in the last fortnight period (with tooltip)
 
 ## Day-wise Winner Logic
 

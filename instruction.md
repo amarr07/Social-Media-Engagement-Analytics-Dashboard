@@ -1,127 +1,74 @@
-Project Instructions: Social Media Engagement Analytics Agent
-Folder Structure
-text
-/project-root
-    |-- app.py             # Main Streamlit interface
-    |-- analytics.py       # Engagement, ranking, and reporting functions
-    |-- utils.py           # Helper functions (file type detection, mapping)
-    |-- requirements.txt   # Python package list for reference (optional)
-    |-- /static            # For any static files, visuals, or preview images
-    |-- /data              # Save uploaded or demo files (optional)
-Required Setup
-Python 3.8+ (recommended version; must be installed on your system)
 
-Streamlit and pandas libraries—ensure these are available via pip install streamlit pandas for code to run.
+# Project Instructions: Social Media Performance Dashboard
 
-No additional system installation steps—just ensure your Python is ready with pandas and streamlit.​
+## Objective  
+Build a Streamlit interface in Python to analyze social media post performance by uploading Excel files. Output a dashboard summarizing engagement and performance metrics for all pages/profiles/channels.
 
-Step-by-Step Detailed Instructions
-1. Launching the Streamlit Dashboard
+## Folder Structure  
+```
+project_root/
+│
+├── app.py                # Main Streamlit app
+├── utils.py              # Helper functions for processing data
+├── requirements.txt      # List only core packages for reference
+├── README.md             # Basic overview + dashboard usage
+├── assets/               # Static images/CSS (if any UI tweaks/designer additions)
+└── uploads/              # Optional temp location for user files
+```
 
-Run app.py with streamlit run app.py
+## Step-by-Step Workflow
 
-2. Uploading the Performance Data
+### 1. Launch Streamlit Interface
+- Start with a single file, `app.py`, where all logic is laid out clearly.
+- Main dashboard should have three upload buttons, each accepting an Excel (xlsx) file using `st.file_uploader`.
+    - Upload 1: Daily Post Performance (columns: page/profile/channel name, post name/id, date, like, comment, share)
+    - Upload 2: Last Fortnight Performance (columns: page/profile/channel name, engagement, post count, day won, rank)
+    - Upload 3: Follower Counts (columns: page/profile/channel name, follower)
 
-The dashboard will prompt you to upload three files:
+### 2. Data Processing / Mapping
+1. Load the uploaded Excel using `pandas.read_excel`, engine `openpyxl`.
+2. Show a preview with `st.dataframe` so the user can manually map which columns mean like, comment, share, post name/id if column names are ambiguous.
+3. Compute engagement for each post:
+    - Formula: $$ engagement = 1 \times like + 2 \times comment + 3 \times share $$
+    - For ambiguous columns, display mapping dialog and let user pick which is which.
+4. Group posts by page/profile/channel and date.
+    - For each date, sum engagement for each entity; the one with the highest value is "day won" (mark as 1 for that record, 0 otherwise).
+5. For final aggregation:
+    - Unique pages/profiles/channels as index.
+    - Sum of posts, total engagement, sum of “day won”.
 
-Performance File #1 – must be an Excel file (.xlsx or .xls) containing columns: page/profile/channel name, post id/name, post date, like, comment, share.
+### 3. Add Metrics from Other Uploads
+1. After 2nd upload, for each page/channel/profile, compute:
+    - % Change in post: $$ \frac{current\_post - last\_fortnight\_post}{last\_fortnight\_post} \times 100 $$
+    - % Change in engagement: $$ \frac{current\_engagement - last\_fortnight\_engagement}{last\_fortnight\_engagement} \times 100 $$
+    - Add last fortnight’s day won and rank (direct mapping from file).
+2. After 3rd upload, merge follower counts with the final report.
 
-Each row = one post, columns as described.
+### 4. Dashboard Outputs  
+- Make the results in an interactive `st.dataframe`/`st.table` with sorting/ranking enabled.
+- Display columns:
+    - follower
+    - page/profile/channel name
+    - post (sum by entity)
+    - engagement (sum by entity)
+    - rank (by engagement descending)
+    - day won (sum by entity)
+    - % change in post
+    - % change in engagement
+    - last fortnight day won
+    - last fortnight rank
+- Use modern Streamlit visuals like badges/ranking icons for a “classy” look. Optionally, use conditional formatting or colored bars for ranking.
 
-Last Time Comparison File #2 – another Excel which has page/profile/channel name with corresponding aggregate post and engagement values for earlier period.
+### 5. Additional UI Details
+- Use Streamlit sidebar for file uploads.
+- Add help tooltips for each column header explaining how the metric is calculated.
+- Always show error messages clearly (file format, missing columns, incorrect mappings).
 
-Follower Data File #3 – Excel file listing page/profile/channel name and latest follower count.​
+### 6. Guidance for Copilot Suggestions  
+- Always assume ambiguous column mapping; prompt user visually.
+- Avoid unnecessary Flask/Django setups.
+- All logic must be Python + Streamlit only.
+- Never add external service calls or major side effects.
+- Suggestions must cover clean error handling, progress feedback, and null protection.
+- UI should remain single-page unless explicitly asked for tabs/views.
 
-3. Data Mapping & Validation
-
-After upload, the app lists columns for mapping: user selects which column maps to "Page Name", "Post Name/ID", "Like", "Comment", "Share", "Date" for performance.
-
-For each upload, if columns are mismatched or ambiguous, the app preview will let you select which corresponds to which.​
-
-4. Engagement Calculation
-
-Engagement for every post is computed as:
-
-Engagement
-=
-1
-×
-Like
-+
-2
-×
-Comment
-+
-3
-×
-Share
-Engagement=1×Like+2×Comment+3×Share
-
-This formula is applied to each row (i.e., each post).​
-
-5. Daywise Winner Logic
-
-The app aggregates by page/profile/channel and date, summing engagement for each combination.​
-
-The page/profile/channel with the highest engagement that day gets "day won" = 1; all others are 0 for that date.
-
-6. Aggregation and Ranking
-
-The final leaderboard dashboard displays per page/profile/channel:
-
-Follower count (from 3rd file)
-
-Number of Posts (sum for period from file 1)
-
-Total Engagement (sum over all posts in day range)
-
-Rank (by descending Engagement)
-
-Day Won (sum for period)
-
-% Change in Posts (vs file 2's period)
-
-% Change in Engagement (vs file 2)
-
-% changes are calculated as:
-
-Current
-−
-Previous
-Previous
-×
-100
-Previous
-Current−Previous
- ×100
-
-for both Posts and Engagement.
-
-7. Interactive Dashboard Display
-
-All metrics above shown in an interactive table in Streamlit.
-
-Page/profile/channel name column should always be visible and sorted by Rank.
-
-Data should be visually styled with Streamlit's built-in or minimal custom options for clarity and an upscale look.​​
-
-Allow download/export of result for manual checks.
-
-Recommendations for Copilot/Agent
-Always prompt user for data column mapping before calculation, if ambiguity exists.
-
-Add validations for file format and required columns after upload.
-
-For all calculations (engagement, aggregation, change), use pandas—avoid manual looping and keep formulas explicit and visible in code.
-
-Store uploaded dataframes in session state for easy stepwise interaction.
-
-For anything unclear (column mapping, missing columns), show the preview and request user selection.
-
-Keep interface simple: a three-step sidebar or three-page flow:
-
-Upload all files and map columns
-
-Preview per-post engagement, by day
-
-Leaderboard dashboard and export
